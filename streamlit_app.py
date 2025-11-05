@@ -26,8 +26,30 @@ def extract_wavlm_embedding(file_obj):
     return emb.squeeze()
 
 def extract_handcrafted_features(y, sr, lpc_order=12, mfcc_n=12):
-    # LPC, LAR, Cepstral, MFCC (same as your code)
-    # ...
+    # LPC coefficients
+    try:
+        lpc_coeffs, e = aryule(y, lpc_order)
+        lpc_feat = np.concatenate([lpc_coeffs, np.full(lpc_order, np.var(lpc_coeffs))])
+    except:
+        lpc_feat = np.zeros(lpc_order*2)
+
+    # LAR (Log-Area Ratios)
+    try:
+        lar = np.log(np.abs(lpc_coeffs) + 1e-6)
+        lar_feat = np.concatenate([lar, np.full(lpc_order, np.var(lar))])
+    except:
+        lar_feat = np.zeros(lpc_order*2)
+
+    # Cepstral coefficients
+    cep = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
+    cep_feat = np.concatenate([np.mean(cep, axis=1), np.var(cep, axis=1)])
+
+    # MFCC coefficients
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
+    mfcc_feat = np.concatenate([np.mean(mfcc, axis=1), np.var(mfcc, axis=1)])
+
+    # Combine all handcrafted features
+    features = np.concatenate([lpc_feat, lar_feat, cep_feat, mfcc_feat])  # 96-dim
     return features
 
 def predict_hybrid(file_obj):
