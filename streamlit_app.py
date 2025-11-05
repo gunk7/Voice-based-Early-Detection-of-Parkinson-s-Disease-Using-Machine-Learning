@@ -9,7 +9,7 @@ import joblib
 # -------------------------------
 # Load Model & Scaler
 # -------------------------------
-model = joblib.load("hybrid_rf_20251105_0934.joblib")
+model = joblib.load("hybrid_rf_20251105_1145.joblib")
 scaler = joblib.load("hybrid_scaler.joblib")
 
 # -------------------------------
