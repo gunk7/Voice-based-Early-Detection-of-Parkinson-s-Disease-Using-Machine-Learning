@@ -66,14 +66,15 @@ def predict_hybrid(file_obj):
     file_obj.seek(0)
     wavlm_features = extract_wavlm_embedding(file_obj)
 
-    # ---- Apply PCA first ----
-    wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1))
+    try:
+        wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1))
+    except Exception as e:
+        raise ValueError("⚠️ WavLM feature PCA failed. Audio might be too short or incompatible.")
 
-    # ---- Combine & scale ----
     combined_features = np.hstack([handcrafted_features.reshape(1, -1), wavlm_reduced])
     if combined_features.shape[1] != scaler.mean_.shape[0]:
-        raise ValueError(f"Feature mismatch: got {combined_features.shape[1]}, expected {scaler.mean_.shape[0]}")
-    
+        raise ValueError(f"⚠️ Feature mismatch: got {combined_features.shape[1]}, expected {scaler.mean_.shape[0]}. Use training audio for demo.")
+
     scaled_features = scaler.transform(combined_features)
     pred_label = model.predict(scaled_features)[0]
     pred_prob = model.predict_proba(scaled_features)[0]
