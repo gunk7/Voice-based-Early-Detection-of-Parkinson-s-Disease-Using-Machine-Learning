@@ -9,7 +9,7 @@ import joblib
 # -------------------------------
 # Load Model & Scaler
 # -------------------------------
-model = joblib.load("hybrid_rf_20251105_1145.joblib")
+model = joblib.load("hybrid_rf_20251106_1955.joblib")
 scaler = joblib.load("hybrid_scaler.joblib")
 pca = joblib.load("hybrid_pca_65.joblib")  # load the PCA used in training
 
