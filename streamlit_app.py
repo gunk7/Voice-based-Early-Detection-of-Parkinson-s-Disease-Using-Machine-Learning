@@ -32,49 +32,53 @@ def extract_wavlm_embedding(file_obj):
         emb = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
     return emb.squeeze()
 
-def extract_handcrafted_features(y, sr, mfcc_n=12):
+def extract_handcrafted_features(y, sr, lpc_order=12, mfcc_n=12):
+    # LPC coefficients
+    try:
+        lpc_coeffs, _ = aryule(y, lpc_order)
+        lpc_feat = np.concatenate([lpc_coeffs, np.full(lpc_order, np.var(lpc_coeffs))])
+    except:
+        lpc_feat = np.zeros(lpc_order*2)
+
+    # LAR
+    try:
+        lar = np.log(np.abs(lpc_coeffs) + 1e-6)
+        lar_feat = np.concatenate([lar, np.full(lpc_order, np.var(lar))])
+    except:
+        lar_feat = np.zeros(lpc_order*2)
+
     # MFCC
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
-    mfcc_feat = np.concatenate([np.mean(mfcc, axis=1), np.var(mfcc, axis=1)])
+    try:
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
+        mfcc_feat = np.concatenate([np.mean(mfcc, axis=1), np.var(mfcc, axis=1)])
+    except:
+        mfcc_feat = np.zeros(mfcc_n*2)
 
-    # Spectral features
-    spec_centroid = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
-    spec_bw = np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
-    spec_rolloff = np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr))
-    zcr = np.mean(librosa.feature.zero_crossing_rate(y))
-
-    # Combine
-    features = np.concatenate([mfcc_feat, [spec_centroid, spec_bw, spec_rolloff, zcr]])
+    # Combine handcrafted features
+    features = np.concatenate([lpc_feat, lar_feat, mfcc_feat])
     return features
-
 
 def predict_hybrid(file_obj):
     file_obj.seek(0)
-    
-    # Load full audio
-    y, sr = librosa.load(file_obj, sr=16000)  
-    
+    y, sr = librosa.load(file_obj, sr=16000)
+
     # ---- Handcrafted features ----
-    handcrafted_features = extract_handcrafted_features(y, sr)
-    
+    handcrafted_features = extract_handcrafted_features(y, sr)  # 137 features
+
     # ---- WavLM features ----
     file_obj.seek(0)
-    wavlm_features = extract_wavlm_embedding(file_obj)
-    
-    # ---- Apply PCA (same as training) ----
-    wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1))
-    
-    # ---- Combine and scale ----
+    wavlm_features = extract_wavlm_embedding(file_obj)           # 768 dims
+    wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1)) # 65 dims
+
+    # ---- Combine & scale ----
     combined_features = np.hstack([handcrafted_features.reshape(1, -1), wavlm_reduced])
     scaled_features = scaler.transform(combined_features)
-    
+
     # ---- Predict ----
     pred_label = model.predict(scaled_features)[0]
     pred_prob = model.predict_proba(scaled_features)[0]
-    
+
     return pred_label, pred_prob
-
-
 
 # -------------------------------
 # Streamlit UI
