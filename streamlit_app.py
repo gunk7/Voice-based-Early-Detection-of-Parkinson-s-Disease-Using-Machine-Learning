@@ -9,9 +9,9 @@ import joblib
 # -------------------------------
 # Load Model & Scaler
 # -------------------------------
-model = joblib.load("hybrid_rf_20251106_1955.joblib")
+model = joblib.load("hybrid_rf_20251106_2034.joblib")
 scaler = joblib.load("hybrid_scaler.joblib")
-pca = joblib.load("hybrid_pca_65.joblib")  # load the PCA used in training
+pca = joblib.load("hybrid_pca_55.joblib")  # load the PCA used in training
 
 # -------------------------------
 # WavLM setup
