@@ -32,31 +32,21 @@ def extract_wavlm_embedding(file_obj):
         emb = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
     return emb.squeeze()
 
-def extract_handcrafted_features(y, sr, lpc_order=12, mfcc_n=12):
-    # LPC
-    try:
-        lpc_coeffs, _ = aryule(y, lpc_order)
-        lpc_feat = np.concatenate([lpc_coeffs, np.full(lpc_order, np.var(lpc_coeffs))])
-    except:
-        lpc_feat = np.zeros(lpc_order*2)
-
-    # LAR
-    try:
-        lar = np.log(np.abs(lpc_coeffs) + 1e-6)
-        lar_feat = np.concatenate([lar, np.full(lpc_order, np.var(lar))])
-    except:
-        lar_feat = np.zeros(lpc_order*2)
-
+def extract_handcrafted_features(y, sr, mfcc_n=12):
     # MFCC
-    try:
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
-        mfcc_feat = np.concatenate([np.mean(mfcc, axis=1), np.var(mfcc, axis=1)])
-    except:
-        mfcc_feat = np.zeros(mfcc_n*2)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=mfcc_n)
+    mfcc_feat = np.concatenate([np.mean(mfcc, axis=1), np.var(mfcc, axis=1)])
 
-    # Combine handcrafted features
-    features = np.concatenate([lpc_feat, lar_feat, mfcc_feat])
+    # Spectral features
+    spec_centroid = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
+    spec_bw = np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
+    spec_rolloff = np.mean(librosa.feature.spectral_rolloff(y=y, sr=sr))
+    zcr = np.mean(librosa.feature.zero_crossing_rate(y))
+
+    # Combine
+    features = np.concatenate([mfcc_feat, [spec_centroid, spec_bw, spec_rolloff, zcr]])
     return features
+
 
 def predict_hybrid(file_obj):
     file_obj.seek(0)
