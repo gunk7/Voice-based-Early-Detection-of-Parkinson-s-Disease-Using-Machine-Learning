@@ -60,25 +60,31 @@ def extract_handcrafted_features(y, sr, lpc_order=12, mfcc_n=12):
 
 def predict_hybrid(file_obj):
     file_obj.seek(0)
-    y, sr = librosa.load(file_obj, sr=None)
+    
+    # Load full audio
+    y, sr = librosa.load(file_obj, sr=16000)  
+    
+    # ---- Handcrafted features ----
     handcrafted_features = extract_handcrafted_features(y, sr)
-
+    
+    # ---- WavLM features ----
     file_obj.seek(0)
     wavlm_features = extract_wavlm_embedding(file_obj)
-
-    try:
-        wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1))
-    except Exception as e:
-        raise ValueError("⚠️ WavLM feature PCA failed. Audio might be too short or incompatible.")
-
+    
+    # ---- Apply PCA (same as training) ----
+    wavlm_reduced = pca.transform(wavlm_features.reshape(1, -1))
+    
+    # ---- Combine and scale ----
     combined_features = np.hstack([handcrafted_features.reshape(1, -1), wavlm_reduced])
-    if combined_features.shape[1] != scaler.mean_.shape[0]:
-        raise ValueError(f"⚠️ Feature mismatch: got {combined_features.shape[1]}, expected {scaler.mean_.shape[0]}. Use training audio for demo.")
-
     scaled_features = scaler.transform(combined_features)
+    
+    # ---- Predict ----
     pred_label = model.predict(scaled_features)[0]
     pred_prob = model.predict_proba(scaled_features)[0]
+    
     return pred_label, pred_prob
+
+
 
 # -------------------------------
 # Streamlit UI
